@@ -55,8 +55,9 @@ function frame(i){
   document.body.appendChild(i);
 }
 
-console.log("THIS IS AN ALPHA FOR DEVELOPERS, NO POLYFILL HAS BEEN PUBLISHED YET, YOU MUST PROTOTYPE IT AS AN UNPACKED EXTENSION!");
+//console.log("THIS IS AN ALPHA FOR DEVELOPERS, NO POLYFILL HAS BEEN PUBLISHED YET, YOU MUST PROTOTYPE IT AS AN UNPACKED EXTENSION!");
 //sr.polyfill = {runtime: {getURL: function(){ return 'https://securerender.org/extension/' } }};
-sr.polyfill = {runtime: {getURL: function(){ return '/' } }}; // for debugging  **THIS MUST HAVE // in front it during PRs
+sr.polyfill = {runtime: {getURL: function(){ return 'https://securerender.org/tmp/' } }};
+//sr.polyfill = {runtime: {getURL: function(){ return '/' } }}; // for debugging  **THIS MUST HAVE // in front it during PRs
 
 }());
