@@ -1,7 +1,7 @@
 ;(function(sr){
 
 sr = {};
-sr.up = function(msg){ window.parent.postMessage(msg, '*'); }  // TODO: AUDIT! THIS LOOKS SCARY, BUT '/' NOT WORK FOR SANDBOX 'null' ORIGIN. IS THERE ANYTHING BETTER?
+sr.up = function(msg){ window.parent.postMessage(msg, '*'); }  // NOTE: THIS LOOKS SCARY, BUT INSIDE A SANDBOX 'null' ORIGIN MEANS WE CANNOT USE '/' & ONLY PARENT, NO GRANDPARENT/SIBLINGS, CAN RECEIVE.
 
 function fail(){ fail.yes = 1; document.body.innerHTML = "<center>SecureRender has detected an external threat trying to tamper with the security of your application.<br/>Please reload to restore security. If you still have problems, search for a more trusted source to load the application from.</center>" }
 
@@ -14,6 +14,9 @@ function fail(){ fail.yes = 1; document.body.innerHTML = "<center>SecureRender h
     sr.ban.set(tmp.postMessage, 1);
   }
 }());
+
+// Because ServiceWorker cannot intercept 'null' origin requests, enclave has to scrape sandbox html into localstorage with the JS inlined so it is not loaded externally next times. But this requires we use a srcDoc and allow for inline, which we previously did not need, and it turns out we can turn it off after we run so nobody else can do it later:
+(sr.csp = document.querySelector('meta')).content = (sr.old = sr.csp.content).replace("'unsafe-inline'",'');
 
 window.onmessage = function(eve){ // hear from app, enclave, and workers.
   var msg = eve.data;
@@ -660,7 +663,7 @@ function render(list){
 
   for (let change of list) {
     if (!change.name) {
-      //console.error('No change.name in render', change);
+      console.error('No change.name in render', change);
       continue;
     }
 
