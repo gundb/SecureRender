@@ -52,6 +52,18 @@ sr.how = {
   // localStorage is not async, so here is a quick async version for testing.
   localStore: function(msg, eve){ var u;
     if(nope[msg.get]){ return } // prevent reserved keys being modified, use better approach in future.
+
+    if(u !== msg.put){
+      //localStorage.setItem(msg.get, JSON.stringify(msg.put));
+      store.put(msg.get, JSON.stringify(msg.put), function(err,ack){ console.log("eIdb.put", err, ack) });
+    } else
+    if(msg.get){
+      store.get(msg.get, function(err,data){ console.log("eIdb.get", err, data);
+      sr.send({to: msg.via, ack: msg.ack, ask: [JSON.parse(data)], how: 'localStore'});
+      });
+    }
+
+    return;
     if(u !== msg.put){
       localStorage.setItem(msg.get, JSON.stringify(msg.put));
     } else
@@ -63,6 +75,7 @@ sr.how = {
 function nope(){}; nope.sandbox = 1;
 
 window.addEventListener('storage', function(msg){
+  console.log("encPass:", msg);
   sr.send({to: 1, get: msg.key, put: JSON.parse(msg.newValue), how: 'localStore'});
 });
 
@@ -75,5 +88,57 @@ window.addEventListener('storage', function(msg){
     return;
   }
 });
+
+
+
+
+
+
+
+
+
+
+
+
+var store = Store();
+
+function Store(opt){
+  opt = opt || {};
+  opt.file = String(opt.file || 'sr');
+  var store = Store[opt.file], db = null, u;
+  store = function(){};
+
+  store.start = function(){
+    var o = indexedDB.open(opt.file, 1);
+    o.onupgradeneeded = function(eve){ (eve.target.result).createObjectStore(opt.file) }
+    o.onsuccess = function(){ db = o.result }
+    o.onerror = function(eve){ console.log(eve||1); }
+  }; store.start();
+
+  store.put = function(key, data, cb){
+    if(!db){ setTimeout(function(){ store.put(key, data, cb) },1); return }
+    var tx = db.transaction([opt.file], 'readwrite');
+    var obj = tx.objectStore(opt.file);
+    var req = obj.put(data, ''+key);
+    req.onsuccess = obj.onsuccess = tx.onsuccess = function(){ cb(null, 1) }
+    req.onabort = obj.onabort = tx.onabort = function(eve){ cb(eve||'put.tx.abort') }
+    req.onerror = obj.onerror = tx.onerror = function(eve){ cb(eve||'put.tx.error') }
+  }
+
+  store.get = function(key, cb){
+    if(!db){ setTimeout(function(){ store.get(key, cb) },9); return }
+    var tx = db.transaction([opt.file], 'readonly');
+    var obj = tx.objectStore(opt.file);
+    var req = obj.get(''+key);
+    req.onsuccess = function(){ cb(null, req.result) }
+    req.onabort = function(eve){ cb(eve||4) }
+    req.onerror = function(eve){ cb(eve||5) }
+  }
+  setInterval(function(){ db && db.close(); db = null; store.start() }, 1000 * 15); // reset webkit bug?
+  return store;
+}
+
+
+
 
 }());
