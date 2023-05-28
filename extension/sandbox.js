@@ -71,7 +71,7 @@ sr.how.html = function(msg){
   }
 }
 
-sr.how.localStore = function(msg, eve){
+sr.how.store = function(msg, eve){
   var tmp;
   if(tmp = msg.to){
     if(msg.get){
@@ -134,9 +134,7 @@ function the(){ // THIS CODE RUNS INSIDE THE WEBWORKER!
   Math.mix = function (a,b,m) { m = m || 0; return a + (b-a) * m }
   Math.remix = function(a,b,m){ m = m || 0; return (m - a) / (b - a) }
 
-  // localStorage is not async, so here is a quick async version for testing.
-  // TODO: indexedDB is in webworkers, so maybe that should be encouraged instead, to stick with standards?
-  this.localStore = new Proxy({}, {get: function(at,has,put){
+  this.store = new Proxy({}, {get: function(at,has,put){
     if(u !== (put = at[has])){ return put }
     put = new Promise(function(res, rej){
       var ack = Math.random(), any = function(v){
@@ -145,12 +143,12 @@ function the(){ // THIS CODE RUNS INSIDE THE WEBWORKER!
         map.delete(ack);
       }, to = setTimeout(function(){any(at[has])}, opt.lack || 9000);
       map.set(ack, any);
-      up({how: 'localStore', get: has, ack: ack});
+      up({how: 'store', get: has, ack: ack});
     });
     put.toString = tS;
     return put;
   }, set: function(at,has,put){
-    up({how: 'localStore', get: has, put: at[has] = put});
+    up({how: 'store', get: has, put: at[has] = put});
   }});
   function tS(){ return '' };
 
@@ -225,7 +223,7 @@ function the(){ // THIS CODE RUNS INSIDE THE WEBWORKER!
   place.into = function(on){ return place(was.what, 0.1, on) }
   //place.text = function(t){ pm.s.push({what: }) }
 
-  the.player = this.localStore;
+  the.player = this.store;
   the.words = "english"; // TODO! Do not hardcode.
   the.unit = {cs: 5, ps: 1}; // TODO! Do not hardcode.
 }

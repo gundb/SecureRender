@@ -14,7 +14,7 @@ HOW SECURE RENDER WORKS: APP -> [ IFRAME SHIELD -> [SECURE RENDER] <-> USER DATA
 AN APP ONLY EVER FEEDS IN VIEW LOGIC. DATA IS NEVER SENT BACK UP! */
 sr = {ext: ((window.browser||window.chrome)||'').runtime};
 
-//try{ !sr.ext && navigator.serviceWorker.register('./service.js'); }catch(e){ console.log(e) };
+try{ !sr.ext && navigator.serviceWorker.register('./service.js'); }catch(e){ console.log(e) };
 
 (function start(i){
   // TODO: talk to cloudflare about enforcing integrity meanwhile?
@@ -27,6 +27,7 @@ sr = {ext: ((window.browser||window.chrome)||'').runtime};
   document.body.appendChild(i);
   if(sr.ext){ return i.src = "./sandbox.html" } // extension
   if(i.doc = localStorage.sandbox){ return i.srcdoc = i.doc } // cached polyfill prevents remote attack
+  // TODO: AUDIT: Does State Partitioning reduce sandbox caching? If so, we should try to IDB it in SW.
   i.src = "./sandbox.html";
   ;(async function(){
     var html = await (await fetch('./sandbox.html')).text();
@@ -43,27 +44,13 @@ window.onmessage = function(eve){
   if(!msg){ return }
   //if(eve.origin !== location.origin){ console.log('meow?',eve); return }
   if(eve.source !== sr.i.contentWindow){ return sr.send(msg) }
-  tmp = sr.how[msg.how];
-  if(!tmp){ return }
-  tmp(msg, eve);
+  (c = new MessageChannel).port1.onmessage = function(eve){ sr.send(eve.data) }
+  navigator.serviceWorker.controller.postMessage(msg,[c.port2]);
 };
 
-sr.how = {
-  // localStorage is not async, so here is a quick async version for testing.
-  localStore: function(msg, eve){ var u;
-    if(nope[msg.get]){ return } // prevent reserved keys being modified, use better approach in future.
-    if(u !== msg.put){
-      localStorage.setItem(msg.get, JSON.stringify(msg.put));
-    } else
-    if(msg.get){
-      sr.send({to: msg.via, ack: msg.ack, ask: [JSON.parse(localStorage.getItem(msg.get))], how: 'localStore'});
-    }
-  }
-}
-function nope(){}; nope.sandbox = 1;
-
 window.addEventListener('storage', function(msg){
-  sr.send({to: 1, get: msg.key, put: JSON.parse(msg.newValue), how: 'localStore'});
+  console.log("encPass:", msg);
+  sr.send({to: 1, get: msg.key, put: JSON.parse(msg.newValue), how: 'store'});
 });
 
 !sr.ext && navigator.serviceWorker.addEventListener("message", function(msg){
