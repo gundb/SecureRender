@@ -1,45 +1,81 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OPFS Editor</title>
+  <title>OPFS Test Iframe</title>
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline'; default-src data: blob: mediastream: filesystem:; style-src 'self' 'unsafe-inline'; child-src 'self' blob:; worker-src blob: 'self';">
     <meta http-equiv="x-dns-prefetch-control" content="off">
 </head>
+
 <body>
-    <textarea id="editor" rows="10" cols="50"></textarea>
-    <button id="save">Save</button>
-    <script>
-        if ('storage' in navigator && 'getDirectory' in navigator.storage) {
-            async function loadContent() {
-                try {
-                    const root = await navigator.storage.getDirectory();
-                    const fileHandle = await root.getFileHandle('data.txt', { create: true });
-                    const file = await fileHandle.getFile();
-                    document.getElementById('editor').value = await file.text();
-                } catch (error) {
-                    console.error('Error loading content:', error);
-                }
-            }
+  <h3>OPFS Test Iframe (Origin: localhost:3000)</h3>
+  <button onclick="doAction('write')">Write</button>
+  <button onclick="doAction('read')">Read</button>
+  <div id="iframeResult">No operations performed yet</div>
+  <script>
+async function handleOPFS(action, data) {
+  try {
+    const root = await navigator.storage.getDirectory();
 
-            async function saveContent() {
-                try {
-                    const root = await navigator.storage.getDirectory();
-                    const fileHandle = await root.getFileHandle('data.txt', { create: true });
-                    const writable = await fileHandle.createWritable();
-                    await writable.write(document.getElementById('editor').value);
-                    await writable.close();
-                } catch (error) {
-                    console.error('Error saving content:', error);
-                }
-            }
+    if (action === 'write') {
+      const file = await root.getFileHandle('test.txt', { create: true });
+      const writer = await file.createWritable();
+      await writer.write(data || 'TEST-' + new Date().toISOString());
+      await writer.close();
+      return 'Written successfully';
+    }
 
-            window.addEventListener('load', loadContent);
-            document.getElementById('save').addEventListener('click', saveContent);
-        } else {
-            document.body.innerHTML = '<p>Sorry, your browser does not support OPFS.</p>';
-        }
-    </script>
+    if (action === 'read') {
+      const file = await root.getFileHandle('test.txt');
+      const text = await (await file.getFile()).text();
+      return 'Read: ' + text;
+    }
+  } catch (err) {
+    return 'Error: ' + err.message;
+  }
+}
+
+// Keep track of parent windows that have contacted us
+const connectedParents = new Set();
+
+// Broadcast result to all connected parents
+function broadcast(result) {
+  connectedParents.forEach(parent => {
+    parent.source.postMessage(result, parent.origin);
+  });
+  document.getElementById('iframeResult').textContent = result;
+}
+
+async function doAction(action) {
+  const result = await handleOPFS(action);
+  broadcast(result);
+}
+
+// Restore message handling
+window.addEventListener('message', async (e) => {
+  if (true || e.origin.startsWith('http://localhost')) {
+    // Store parent info for broadcasting
+    connectedParents.add({
+      source: e.source,
+      origin: e.origin
+    });
+    const result = await handleOPFS(e.data.action);
+    broadcast(result);
+  }
+});
+
+// Auto-refresh content every second
+setInterval(async () => {
+  try {
+    const result = await handleOPFS('read');
+    broadcast(result);
+  } catch (err) {
+    // Ignore errors during auto-refresh
+  }
+}, 1000);
+
+console.log('OPFS test iframe script loaded');
+  </script>
 </body>
+
 </html>
