@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OPFS Editor</title>
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline'; default-src data: blob: mediastream: filesystem:; style-src 'self' 'unsafe-inline'; child-src 'self' blob:; worker-src blob: 'self';">
+    <meta http-equiv="x-dns-prefetch-control" content="off">
+</head>
+<body>
+    <textarea id="editor" rows="10" cols="50"></textarea>
+    <button id="save">Save</button>
+    <script>
+        if ('storage' in navigator && 'getDirectory' in navigator.storage) {
+            async function loadContent() {
+                try {
+                    const root = await navigator.storage.getDirectory();
+                    const fileHandle = await root.getFileHandle('data.txt', { create: true });
+                    const file = await fileHandle.getFile();
+                    document.getElementById('editor').value = await file.text();
+                } catch (error) {
+                    console.error('Error loading content:', error);
+                }
+            }
+
+            async function saveContent() {
+                try {
+                    const root = await navigator.storage.getDirectory();
+                    const fileHandle = await root.getFileHandle('data.txt', { create: true });
+                    const writable = await fileHandle.createWritable();
+                    await writable.write(document.getElementById('editor').value);
+                    await writable.close();
+                } catch (error) {
+                    console.error('Error saving content:', error);
+                }
+            }
+
+            window.addEventListener('load', loadContent);
+            document.getElementById('save').addEventListener('click', saveContent);
+        } else {
+            document.body.innerHTML = '<p>Sorry, your browser does not support OPFS.</p>';
+        }
+    </script>
+</body>
+</html>
